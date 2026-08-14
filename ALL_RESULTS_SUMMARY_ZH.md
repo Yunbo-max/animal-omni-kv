@@ -760,7 +760,7 @@ K=5 conditional − baseline 为 +14.39pp，CI `[+8.63, +20.14]`。
 | Watkins Qwen-7B Thinker LoRA | 已上传 | 31.56% Accuracy / 23.44% Macro-F1 |
 | Dogs K=2/class LoRA | 已上传 | 2.88%，全部 Rudy；仅作为负对照 |
 
-新增完成但尚未上传的模型：
+新增完成并已准备发布的模型：
 
 - Dogs 全训练集 LoRA 已完成 one epoch；
 - 415 条 official train，139 条 untouched official test；
@@ -768,7 +768,7 @@ K=5 conditional − baseline 为 +14.39pp，CI `[+8.63, +20.14]`。
 - Macro-F1：12.26%；
 - Invalid：0；
 - 本地 adapter 已完整保存；
-- 尚未上传 Hugging Face。
+- Hugging Face 目标仓库：`https://huggingface.co/humanlong/qwen2.5-omni-7b-dogs-full-lora`。
 
 随后自动开始的额外 Dogs frequency representation extraction 已按用户要求停止；已完成正式产物均保留，未删除 checkpoint 或结果。
 
@@ -789,7 +789,8 @@ K=5 conditional − baseline 为 +14.39pp，CI `[+8.63, +20.14]`。
 - GitHub（私有）：https://github.com/Yunbo-max/animal-omni-kv
 - Watkins LoRA（私有）：https://huggingface.co/humanlong/qwen2.5-omni-7b-watkins-lora
 - Dogs K=2 LoRA（私有）：https://huggingface.co/humanlong/qwen2.5-omni-7b-dogs-k2-lora
-- GitHub 发布 commit：`868596b29cce51f84cc45d93f1c8d5ec2061630d`
+- Dogs full-train LoRA（私有）：https://huggingface.co/humanlong/qwen2.5-omni-7b-dogs-full-lora
+- GitHub 发布分支：`main`
 
 ## 二十三、2026-08-14 两小时高价值扩展
 
@@ -802,3 +803,9 @@ K=5 conditional − baseline 为 +14.39pp，CI `[+8.63, +20.14]`。
 Factorized repair 已实现并通过相关单元测试，但预注册 rank-selection 在两小时截止时仅完成 16/30 query，因此没有选择 rank、没有运行 confirmation/test，也没有把 partial accuracy 当作正式结果。MarmAudio K=8 constrained candidate scoring 同样只完成 50/75，已保存 checkpoint 并停止。
 
 完整协议、数值、限制和续跑顺序见 `TWO_HOUR_EXTENSION_RESULTS_20260814_ZH.md`。
+
+## 二十四、2026-08-14 Order-control 续跑状态
+
+MarmAudio counterbalanced order controls 已完成预定三组中的最后一组 K=8 interleaved。结果为 75 条 query、accuracy 20.00%、macro-F1 19.74%、invalid 0%、last-label copy rate 0%。这个对照说明 K=8 ICL 的错误不是简单复制最后一个 support label。
+
+随后自动启动的跨数据集 order controls 在 RTX 3090 24GB 上显存不足：Dogs K=2 在 audio tower attention 处 OOM，Watkins K=1 在 thinker self-attention 处 OOM。脚本已按协议隔离 incomplete 输出；没有把这两段作为正式结果。

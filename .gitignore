@@ -37,6 +37,7 @@
 /results/gradients*/
 /results/reps*/
 /results/token_reps*/
+/results/lora_beans_dogs_7b_full/
 *.pt
 *.pth
 *.ckpt

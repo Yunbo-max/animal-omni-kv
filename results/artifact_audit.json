@@ -100,6 +100,71 @@
       "name": "summary:results/beans_watkins_probe_7b_summary.json",
       "passed": true,
       "detail": "expected=339 observed=339"
+    },
+    {
+      "name": "aves_bio_fixed_split:dogs",
+      "passed": true,
+      "detail": "manifest=693 reps=693 metadata_errors=0 representation_errors=0 test=139 prediction_errors=0 accuracy=0.834532"
+    },
+    {
+      "name": "aves_bio_fixed_split:watkins",
+      "passed": true,
+      "detail": "manifest=1695 reps=1695 metadata_errors=0 representation_errors=0 test=339 prediction_errors=0 accuracy=0.858407"
+    },
+    {
+      "name": "dogs_full_train_lora_fixed_test",
+      "passed": true,
+      "detail": "train=415 valid_monitor=64 test=139 accuracy=0.251799"
+    },
+    {
+      "name": "marm_equal_support_cross_frequency_kv_geometry",
+      "passed": true,
+      "detail": "support=12 layers=28 full_0-8k=12 lp_0-1000=12 lp_0-2000=12 lp_0-4000=12 lp_0-6000=12 lp_0-8000=12"
+    },
+    {
+      "name": "fixed_split_frequency_probe:dogs",
+      "passed": true,
+      "detail": "split=(415, 139, 139) full_0-8k=129/139 lp_0-1000=122/139 lp_0-2000=127/139 lp_0-4000=127/139 lp_0-6000=124/139 lp_0-8000=132/139"
+    },
+    {
+      "name": "fixed_split_frequency_probe:watkins",
+      "passed": true,
+      "detail": "split=(1017, 339, 339) full_0-8k=299/339 lp_0-1000=251/339 lp_0-2000=264/339 lp_0-4000=291/339 lp_0-6000=294/339 lp_0-8000=285/339"
+    },
+    {
+      "name": "fixed_probe_cross_condition:dogs",
+      "passed": true,
+      "detail": "rows=834 conditions=6 test/condition=139"
+    },
+    {
+      "name": "fixed_probe_cross_condition:watkins",
+      "passed": true,
+      "detail": "rows=2034 conditions=6 test/condition=339"
+    },
+    {
+      "name": "probe_transfer_matrix:dogs",
+      "passed": true,
+      "detail": "cells=72 modes=2 diagonal=6 test/target=139"
+    },
+    {
+      "name": "probe_transfer_matrix:watkins",
+      "passed": true,
+      "detail": "cells=72 modes=2 diagonal=6 test/target=339"
+    },
+    {
+      "name": "boundary_kv_alignment",
+      "passed": true,
+      "detail": "conditions=5 spearman=0.9999999999999999"
+    },
+    {
+      "name": "frequency_probe_per_class",
+      "passed": true,
+      "detail": "dogs=10/139 watkins=31/339"
+    },
+    {
+      "name": "quarantined_partial_smoke_invalid_excluded",
+      "passed": true,
+      "detail": "quarantined=22 referenced_by_authoritative=[]"
     }
   ]
 }

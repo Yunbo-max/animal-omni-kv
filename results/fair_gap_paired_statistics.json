@@ -156,6 +156,118 @@
       "a_only_correct": 12,
       "b_only_correct": 15,
       "mcnemar_exact_two_sided_p": 0.7011080384254456
+    },
+    {
+      "comparison": "Marm K2 probe - K2 audio ICL candidate",
+      "n": 75,
+      "accuracy_a": 0.5866666666666667,
+      "accuracy_b": 0.17333333333333334,
+      "paired_difference_a_minus_b": 0.41333333333333333,
+      "bootstrap_95_ci": [
+        0.28,
+        0.5466666666666666
+      ],
+      "a_only_correct": 34,
+      "b_only_correct": 3,
+      "mcnemar_exact_two_sided_p": 1.233129296451807e-07
+    },
+    {
+      "comparison": "Marm K4 probe - K4 audio ICL free",
+      "n": 75,
+      "accuracy_a": 0.7333333333333333,
+      "accuracy_b": 0.17333333333333334,
+      "paired_difference_a_minus_b": 0.56,
+      "bootstrap_95_ci": [
+        0.44,
+        0.6666666666666666
+      ],
+      "a_only_correct": 42,
+      "b_only_correct": 0,
+      "mcnemar_exact_two_sided_p": 4.547473508864641e-13
+    },
+    {
+      "comparison": "Marm K4 probe - K4 audio ICL candidate",
+      "n": 75,
+      "accuracy_a": 0.7333333333333333,
+      "accuracy_b": 0.17333333333333334,
+      "paired_difference_a_minus_b": 0.56,
+      "bootstrap_95_ci": [
+        0.4533333333333333,
+        0.6666666666666666
+      ],
+      "a_only_correct": 42,
+      "b_only_correct": 0,
+      "mcnemar_exact_two_sided_p": 4.547473508864641e-13
+    },
+    {
+      "comparison": "Marm K8 probe - K8 audio ICL free",
+      "n": 75,
+      "accuracy_a": 0.84,
+      "accuracy_b": 0.17333333333333334,
+      "paired_difference_a_minus_b": 0.6666666666666666,
+      "bootstrap_95_ci": [
+        0.56,
+        0.7733333333333333
+      ],
+      "a_only_correct": 50,
+      "b_only_correct": 0,
+      "mcnemar_exact_two_sided_p": 1.7763568394002505e-15
+    },
+    {
+      "comparison": "Marm K2 counterbalanced blocked - fixed grouped order",
+      "n": 75,
+      "accuracy_a": 0.18666666666666668,
+      "accuracy_b": 0.17333333333333334,
+      "paired_difference_a_minus_b": 0.013333333333333334,
+      "bootstrap_95_ci": [
+        -0.06666666666666667,
+        0.10666666666666667
+      ],
+      "a_only_correct": 6,
+      "b_only_correct": 5,
+      "mcnemar_exact_two_sided_p": 1.0
+    },
+    {
+      "comparison": "Marm K2 counterbalanced interleaved - fixed grouped order",
+      "n": 75,
+      "accuracy_a": 0.13333333333333333,
+      "accuracy_b": 0.17333333333333334,
+      "paired_difference_a_minus_b": -0.04,
+      "bootstrap_95_ci": [
+        -0.16,
+        0.08
+      ],
+      "a_only_correct": 9,
+      "b_only_correct": 12,
+      "mcnemar_exact_two_sided_p": 0.6636238098144531
+    },
+    {
+      "comparison": "Marm K2 probe - K2 audio ICL blocked order",
+      "n": 75,
+      "accuracy_a": 0.5866666666666667,
+      "accuracy_b": 0.18666666666666668,
+      "paired_difference_a_minus_b": 0.4,
+      "bootstrap_95_ci": [
+        0.26666666666666666,
+        0.5333333333333333
+      ],
+      "a_only_correct": 35,
+      "b_only_correct": 5,
+      "mcnemar_exact_two_sided_p": 1.382612026645802e-06
+    },
+    {
+      "comparison": "Marm K2 probe - K2 audio ICL interleaved order",
+      "n": 75,
+      "accuracy_a": 0.5866666666666667,
+      "accuracy_b": 0.13333333333333333,
+      "paired_difference_a_minus_b": 0.4533333333333333,
+      "bootstrap_95_ci": [
+        0.30666666666666664,
+        0.6
+      ],
+      "a_only_correct": 40,
+      "b_only_correct": 6,
+      "mcnemar_exact_two_sided_p": 3.1028037028590916e-07
     }
   ]
 }

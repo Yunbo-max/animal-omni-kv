@@ -17,6 +17,8 @@ Release documentation:
 - `REPRODUCE.md`: exact commands and pinned environment.
 - `MODEL_USAGE.md`: loading and inference for released Thinker LoRA adapters.
 - `DATASETS.md`: provenance, licenses, manifests, and redistribution boundaries.
+- `CT_KV_BASELINE_ASSESSMENT.md`: requirements and current blocker for a faithful
+  multimodal Context-Tuning baseline.
 
 ## First-stage protocol
 
@@ -87,10 +89,24 @@ nested OOF protocol and on the full official Dogs/Watkins fixed splits. BEANS Do
 and Watkins fixed splits have been materialized with
 the benchmark's mono/prefix-truncate/zero-pad duration rules and Qwen-7B zero-shot
 test results, frozen probes, frequency interventions, and query-label-free KV runs
-are complete. A 300-example balanced BEANS-Zero core subset is complete with
-official per-example instructions and a documented 10-second Qwen compute cap.
-The Watkins Thinker LoRA and AVES/official MarmAudio specialist baselines are also
-complete. See `RESULTS.md` for authoritative metrics and `REPRODUCE.md` for commands.
+are complete. The full 2,950-example, 12-component BEANS-Zero capped diagnostic is
+complete with official per-example instructions. One-epoch full-train Thinker
+LoRA baselines are complete on both Watkins (31.56% test) and Dogs (25.18% test),
+and the AVES/official MarmAudio specialist baselines are complete. Matched-support
+MarmAudio KV geometry is complete at full/1/2/4/6/8 kHz. Full official-split
+Dogs degraded probe curves are complete with 693/693 representations at every
+condition and 87.77--94.96% test accuracy; none differs significantly from the
+92.81% full-input probe. Watkins is also complete with 1,695/1,695
+representations at every condition; its condition-specific probe rises from
+74.04% at 1 kHz to 88.20% at full input. Unchanged full-trained probes expose
+far larger 1-kHz boundary drift (Dogs 40.29%, Watkins 9.73%) despite high
+condition-specific decodability. Complete 6x6 source-by-target decoder matrices
+also show reciprocal 1-kHz-to-full failures (Dogs 38.85%, Watkins 20.35%) while
+reproducing every condition-specific diagonal exactly. Holding the layer and
+Ridge strength fixed at the full-selected values makes the reciprocal cells
+30.22% and 23.01%, so layer selection is not the cause. No earlier support-only
+lp1 directory is promoted as a full probe. See `RESULTS.md` for authoritative metrics and
+`REPRODUCE.md` for commands.
 
 The corrected result summary is `FAIR_GAP_RESULTS.md`. Machine-readable audit and
 paired statistics are `results/fair_gap_artifact_audit.json` and

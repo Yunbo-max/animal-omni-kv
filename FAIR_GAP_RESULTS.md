@@ -107,6 +107,20 @@ q/v Thinker LoRA predicts Rudy for all 139 validation examples: 2.88% accuracy,
 0.56% macro-F1. The same-support ridge probe reaches 35.25%; the paired
 difference is +32.37 points (CI +23.74 to +41.01; p=1.97e-11).
 
+As a separate full-supervision baseline, the identical rank-8 q/v protocol was
+trained for one epoch on all 415 official Dogs training examples. The locked
+adapter was then evaluated once on all 139 official test examples: **25.18%
+accuracy / 12.26% macro-F1**. Its outputs still occupy only three of ten classes
+(Mac 101, Luke 32, Zoe 6). Full-train LoRA therefore improves the 2.88% native
+test result, but remains far below the same official-split frozen probe (92.81%)
+and AVES-bio probe (83.45%). This is no longer attributable to an unfair
+zero-shot-versus-supervised comparison: both LoRA and probe use the full labeled
+training split, though their optimization capacity and objectives differ.
+Paired against native generation, LoRA gains +22.30 points (95% event-bootstrap
+CI [+14.39, +30.22]; exact McNemar p=3.35e-7). It remains 67.63 points below the
+Qwen probe (CI [-75.54, -59.71]; p=1.01e-28) and 58.27 points below AVES-bio
+(CI [-67.63, -48.92]; p=8.27e-21).
+
 Relative-norm KV results on all 139 validation examples:
 
 | Method | alpha=.003 | alpha=.01 | alpha=.03 |
@@ -211,6 +225,79 @@ MarmAudio failure-selected gradients also show strong separation at layer 20
 labels and is highly imbalanced. It is mechanism evidence, not a balanced method
 training set. Watkins' old 20-gradient set has one example per observed label and
 cannot estimate within-class geometry.
+
+The frequency comparison removes that imbalance by using the exact same
+registered K=2/class MarmAudio support (12 examples, all six labels) at full,
+1, 2, 4, 6, and 8 kHz. Averaged over all 28 Thinker layers, the paired cosine of
+each condition's corrective field to the full-band field is 0.515, 0.625, 0.723,
+0.825, and 0.979 as the cutoff rises from 1 to 8 kHz. Thus spectral degradation
+systematically rotates the required correction. Yet mean layerwise class
+separation (same-label minus different-label cosine) stays between 0.774 and
+0.826, and median centered effective rank stays between 4.03 and 4.67. The
+corrective field remains compact and class-conditioned while its direction is
+frequency-conditioned. This supports a condition/query-specific repair target;
+it does not override the failed unlabeled-query tokenwise validation gate.
+
+### Fixed-split frequency readout
+
+The complete BEANS Dogs official split is represented independently at all six
+observable-bandwidth conditions. Each cell contains exactly 415 train, 139
+validation, and 139 test events; layer and Ridge alpha are selected only on that
+condition's validation split before refitting train+validation and reading test
+once. Accuracy is **92.81%** at full input and **87.77%, 91.37%, 91.37%, 89.21%,
+and 94.96%** at 1, 2, 4, 6, and 8 kHz low-pass. Every paired full-minus-low-pass
+95% bootstrap interval includes zero (all exact McNemar p>=.189). In contrast,
+native generation is 2.88% at every condition because it always emits Rudy.
+Thus Dogs supplies strong evidence that individual identity remains decodable
+throughout the observable band, but it does **not** support a claim that higher
+baseband frequencies are required for this particular task. The native flat
+curve is a label-collapse floor effect, not acoustic invariance.
+
+A stricter transfer probe exposes a different phenomenon. Selecting layer 10
+and alpha 100 on full-input validation, fitting once on full train+validation,
+and applying that unchanged decoder gives **40.29%, 59.71%, 81.29%, 92.09%, and
+91.37%** at 1/2/4/6/8 kHz. At 1 kHz the same-condition probe is 47.48 points
+higher than full-trained transfer (87.77% versus 40.29%). Individual identity is
+still present, but its linear coordinate system has shifted under low-pass input.
+The paired difference is +47.48 points (95% CI +38.13--+56.12; p=1.29e-16).
+
+Watkins shows both information loss and stronger boundary drift. Its complete
+condition-specific curve is **88.20%** at full input and **74.04%, 77.88%,
+85.84%, 86.73%, and 84.07%** at 1/2/4/6/8 kHz. Full-minus-low-pass losses are
+significant at 1 kHz (+14.16 points, 95% CI +9.73--+18.58, p=1.18e-9), 2 kHz
+(+10.32, CI +6.49--+14.45, p=6.87e-7), and 8 kHz (+4.13, CI +1.18--+7.37,
+p=.0125), but not at 4 or 6 kHz. The unchanged full-trained decoder is far more
+fragile: **9.73%, 24.19%, 71.09%, 82.60%, and 86.73%**. At 1 kHz it trails the
+condition-specific probe by 64.31 points (95% CI +59.29--+69.32; p=4.75e-66).
+
+A source-by-target transfer matrix makes this result symmetric and reproduces
+all 12 condition-specific diagonal cells exactly. On Dogs, a 1-kHz-trained
+decoder scores 87.77% on 1-kHz test audio but only 38.85% on full input; the
+full-trained decoder shows the converse 92.81%/40.29% pattern. On Watkins, the
+corresponding diagonal/off-condition pairs are 74.04%/20.35% for a 1-kHz-trained
+decoder and 88.20%/9.73% for a full-trained decoder. The 1-kHz representation is
+therefore not merely a lower-information point on a shared coordinate system:
+its best source-selected linear boundary is sharply condition-specific in both
+directions. Every source model is selected on source validation only and then
+transferred unchanged to paired target test examples. A matched-layer control
+then fixes every source to the full-selected layer/alpha: the 1-kHz-trained
+decoder still scores 87.77%/75.52% on matched Dogs/Watkins but only 30.22%/23.01%
+when transferred to full input. The reciprocal drift is therefore not explained
+by condition-dependent layer selection.
+
+Together with the matched-gradient result above, this separates two effects:
+low-pass filtering removes some label information, while a much larger portion
+remains decodable after the decision boundary and corrective KV field rotate.
+Across all five registered degraded MarmAudio conditions, the
+condition-specific-minus-full-trained probe gap is rank-aligned with corrective
+field rotation `1-cos(g_f,g_full)` (Spearman rho=1.00, exact two-sided
+permutation p=.0167; Pearson r=.969, exact p=.0167). This is descriptive
+triangulation across only five bandwidths--both quantities co-vary with
+cutoff--not a causal mediation estimate.
+This is the paper's strongest within-observable-spectrum mechanism result. The
+all-class supplemental heatmap reports every 10 Dogs and 31 Watkins test class;
+no class is selected post hoc for display. The two 6x6 decoder-transfer matrices
+are reported as audited supplemental figures.
 
 ## 6. External BEANS-Zero diagnostic
 

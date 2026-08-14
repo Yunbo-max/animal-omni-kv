@@ -1,16 +1,17 @@
-# Working ICLR idea: Equal-Supervision Acoustic Category Binding and Cache Repair
+# Working ICLR idea: Spectral Decision Drift and Equal-Supervision Cache Repair
 
 ## Working title and current decision
 
-**It Encoded the Sound, But Could Not Bind the Label: Cache Repair for
-Few-Shot Acoustic Categories in Generalist Audio-Language Models**
+**It Encoded the Sound, But the Boundary Moved: Spectral Decision Drift in
+Generalist Audio-Language Models**
 
-Alternative method-forward title: **Acoustic Cache Repair: Few-Shot,
-Query-Conditional KV Fields for Bioacoustic Audio-Language Models**.
+Alternative method-forward title: **Acoustic Cache Repair: Support-Gradient KV
+Fields for Bioacoustic Distribution Shift**.
 
-The first title is now a diagnostic hypothesis, not a finished method claim.
-The 12-hour fair protocol validates a support-to-decision/binding failure and a
-partial pooled-cache intervention, but both preregistered tokenwise gates fail.
+The first title is the currently supported diagnostic claim. The 12-hour fair
+protocol validates a support-to-decision/binding failure, strong spectral
+decision-boundary drift, and a partial pooled-cache intervention, but both
+preregistered tokenwise gates fail.
 An ICLR submission should use the diagnostic framing unless a new method beats
 pooled KV under the frozen gate and then transfers across prompts. A methods
 paper is not yet justified by the current validation results.
@@ -105,8 +106,9 @@ The concrete missing question is therefore:
 
 > Under matched K-shot supervision, when do frozen Audio-LM states make an
 > arbitrary acoustic category decodable while a frozen model fails to bind the
-> same support to its native label decision, what KV geometry causes that
-> failure, and can a support-derived corrective field repair an unlabeled query
+> same support to its native label decision; when spectral shift preserves
+> decodability but rotates both the readout boundary and corrective KV field;
+> and can a support-derived, condition-aware field repair an unlabeled query
 > without changing model weights?
 
 ## Empirical wedge: corrected status
@@ -140,6 +142,7 @@ The repaired protocol has already yielded the first fair evidence:
 | Dogs centroid, official valid, K=2/class | 20 examples | 22.30% |
 | Dogs final-layer ridge probe, same K=2/class | 20 examples | 35.25% |
 | Watkins ridge probe, K=1/2/4 per class | 31/62/124 examples | 32.15/42.48/57.52% |
+| Dogs full-train Thinker LoRA, official test | 415 examples | 25.18% (only 3/10 output classes) |
 | BEANS-Zero call-type / zf-indiv, zero-shot | none | 61.48% / 66.98% exact match |
 | BEANS-Zero Watkins / open taxonomy, zero-shot | none | 0% / approximately 0% exact match |
 
@@ -166,6 +169,14 @@ Support changes the model's output prior but does not measurably establish the
 registered audio-to-symbol mapping. At K=2, free ICL reaches 17.33% only because
 all 75 queries collapse to Twitter, whereas the same-support ridge reaches
 58.67% (paired gap +41.33 points, CI 28.00--54.67; p=1.23e-7).
+
+The failure is not confined to tiny support. A one-epoch q/v Thinker LoRA trained
+on all 415 official Dogs training examples improves test generation from 2.88%
+to 25.18%, but emits only Mac/Luke/Zoe and remains 67.63 points below the
+same-split full-train frozen probe. LoRA and probe are not capacity-matched, so
+this is a baseline rather than a causal theorem; it nevertheless shows that the
+native label interface is not trivially repaired by the paper's standard
+parameter-efficient fine-tuning baseline.
 
 The full 2,950-example BEANS-Zero 7B screen sharpens the scope. Native exact
 match is 61.48% on call-type and 66.98% on zebra-finch individual-count, but 0%
@@ -195,6 +206,60 @@ may reside in prompt/decision-token gradients. Restricting the intervention to
 audio tokens recovers only 5/12 at any alpha, versus 1/12 for token permutation
 and 0/12 random. Oracle therefore proves label-specific **causal decision
 capacity**, not universal or purely acoustic repair.
+
+Matched cross-frequency geometry now uses the exact same balanced 12 supports at
+full/1/2/4/6/8 kHz. The all-layer mean paired cosine to the full corrective
+field rises 0.515→0.625→0.723→0.825→0.979 with cutoff, while mean class
+separation remains 0.774--0.826 and median centered effective rank remains
+4.03--4.67. Frequency removal rotates the required correction without erasing
+its compact label structure. This is a stronger mechanistic reason for a
+condition-specific router than the old imbalanced 1-kHz-only spectrum.
+
+The full official Dogs probe curve provides a useful negative frequency result.
+Condition-specific probes score 92.81% at full input and 87.77--94.96% across
+1/2/4/6/8 kHz low-pass inputs; no paired difference from full is significant.
+Native generation remains 2.88% at every cutoff because it emits Rudy for every
+event. Thus this task supports robust within-baseband acoustic decodability and
+arbitrary-name binding failure, but not the hypothesized dependence of individual
+identity on upper-baseband detail. Frequency is a diagnostic moderator, not a
+claim that every animal task degrades monotonically.
+
+The fixed-decoder transfer control changes the mechanistic interpretation in an
+important way. A full-trained probe transferred unchanged to 1 kHz falls from
+92.81% to 40.29% on Dogs, even though a 1-kHz-trained probe reaches 87.77%. On
+Watkins it falls from 88.20% to 9.73%, while a 1-kHz-trained probe reaches
+74.04%. The corresponding 1-kHz corrective gradient field has only 0.515 mean
+cosine to its full-input counterpart but retains strong label separation. This
+triangulates a **spectral decision-boundary drift**: much of the class evidence
+survives, but both the linear readout and the causal cache correction required
+to use it rotate with the observed spectrum. A frequency-aware router is thus a
+response to a measured mechanism, not merely another conditional-steering
+variant.
+
+Both matched-versus-transfer gaps are decisive under paired tests: +47.48 points
+on Dogs (95% CI +38.13--+56.12; p=1.29e-16) and +64.31 on Watkins (CI
++59.29--+69.32; p=4.75e-66).
+
+The full 6x6 source-by-target transfer matrices rule out a one-directional
+artifact. A decoder trained at 1 kHz recovers its matched condition (Dogs
+87.77%, Watkins 74.04%) yet transfers back to full input at only 38.85% and
+20.35%; conversely, the full-trained boundaries score only 40.29% and 9.73% on
+1-kHz targets. All diagonal cells exactly reproduce the registered
+condition-specific probes, and every off-diagonal transfer uses no target label
+for fit or selection. This reciprocal failure is the cleanest evidence that the
+spectral intervention moves the representation boundary rather than merely
+reducing class signal along a fixed axis.
+Fixing every source to the full-selected representation layer and Ridge alpha
+strengthens the control: the 1-kHz source still reaches 87.77% on matched Dogs
+and 75.52% on matched Watkins, but only 30.22% and 23.01% on full targets. Thus
+condition-dependent layer selection cannot account for the reciprocal drift.
+
+The decoder and cache geometries also move together across the five degraded
+MarmAudio bandwidths. The matched-probe minus full-trained-transfer gap is
+perfectly rank-aligned with `1-cos(g_f,g_full)` (Spearman rho=1.00, exact
+permutation p=.0167; Pearson r=.969, exact p=.0167). Because `n=5` and bandwidth
+is a common driver, this is mechanism triangulation rather than a mediation or
+causality claim; the paper must state that limitation next to the plot.
 
 ## Proposed method: Conditional Tokenwise Acoustic Cache Repair
 
@@ -288,8 +353,8 @@ method fails under its original model and MMAU protocol.
 - Individual: BEANS Dogs, official train/valid/test.
 - Call type: MarmAudio six expert-reviewed call types, recording-group OOF.
 - General zero-shot screen: BEANS-Zero is an external diagnostic only; its
-  interrupted full scan is checkpointed and lower priority than causal/fair
-  protocol repair.
+  complete capped scan contains 2,950 examples over all 12 registered components
+  and remains lower priority than causal/fair protocol evidence.
 
 ### Required comparisons
 

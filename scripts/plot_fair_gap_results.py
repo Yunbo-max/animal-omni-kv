@@ -55,17 +55,70 @@ def main() -> None:
     native = load(root / "results/marmaudio_equal_support_native_query75_7b_summary.json")
     axes[0].axhline(100 * native["results"]["bare/sequence_sum"]["accuracy"],
                     color="0.35", linestyle="--", label="native candidate (0-shot)")
-    marm_icl = load(root / "results/marmaudio_equal_support_audio_icl_k1_7b_summary.json")
-    marm_icl_k2 = load(root / "results/marmaudio_equal_support_audio_icl_k2_7b_summary.json")
-    axes[0].scatter(
-        [1, 2],
-        [100 * marm_icl["results"]["1"]["accuracy"],
-         100 * marm_icl_k2["results"]["2"]["accuracy"]],
-        marker="x", s=55, linewidth=2, label="audio ICL",
+    icl_specs = (
+        (0, 75, "results/marmaudio_equal_support_audio_icl_k{}_7b_summary.json", (1, 2, 4, 8)),
+        (1, 139, "results/beans_dogs_lp1_equal_support_audio_icl_k{}_7b_summary.json", (1, 2)),
+        (2, 339, "results/beans_watkins_equal_support_audio_icl_k{}_7b_summary.json", (1, 2, 4)),
     )
-    dogs_icl = load(root / "results/beans_dogs_lp1_equal_support_audio_icl_k1_7b_summary.json")
-    axes[1].scatter([1], [100 * dogs_icl["results"]["1"]["accuracy"]], marker="x",
-                    s=55, linewidth=2, label="audio ICL")
+    for axis_index, expected_query, template, levels in icl_specs:
+        points = []
+        for k in levels:
+            path = root / template.format(k)
+            if not path.exists():
+                continue
+            payload = load(path)
+            cell = payload["results"].get(str(k), {})
+            if cell.get("n_query") != expected_query:
+                continue
+            points.append((k, 100 * cell["accuracy"]))
+        if points:
+            axes[axis_index].scatter(
+                [point[0] for point in points], [point[1] for point in points],
+                marker="x", s=55, linewidth=2, label="audio ICL",
+            )
+    candidate_points = []
+    for k in (1, 2, 4, 8):
+        path = root / f"results/marmaudio_equal_support_audio_icl_candidate_k{k}_7b_summary.json"
+        if not path.exists():
+            continue
+        payload = load(path)
+        cell = payload["results"].get(str(k), {})
+        if cell.get("n_query") != 75:
+            continue
+        candidate_points.append((k, 100 * cell["accuracy"]))
+    if candidate_points:
+        axes[0].scatter(
+            [point[0] for point in candidate_points],
+            [point[1] for point in candidate_points],
+            marker="+", s=70, linewidth=2, label="audio ICL candidate",
+        )
+    order_points = []
+    for k, mode in ((2, "interleaved"), (8, "interleaved")):
+        path = root / f"results/marmaudio_icl_order_control_k{k}_{mode}_7b_summary.json"
+        if not path.exists():
+            continue
+        payload = load(path)
+        if payload.get("n_query") == 75:
+            order_points.append((k, 100 * payload["accuracy"]))
+    if order_points:
+        axes[0].scatter(
+            [point[0] for point in order_points],
+            [point[1] for point in order_points],
+            marker="*", s=85, linewidth=.8, label="order-balanced ICL",
+        )
+    for axis_index, k, expected_query, artifact in (
+        (1, 2, 139, "beans_dogs_lp1"),
+        (2, 1, 339, "beans_watkins"),
+    ):
+        path = root / f"results/{artifact}_icl_order_control_k{k}_interleaved_7b_summary.json"
+        if not path.exists():
+            continue
+        payload = load(path)
+        if payload.get("n_query") == expected_query:
+            axes[axis_index].scatter(
+                [k], [100 * payload["accuracy"]], marker="*", s=85,
+                linewidth=.8, label="order-balanced ICL",
+            )
     for axis in axes:
         axis.legend(frameon=False, fontsize=7.5)
     fig.savefig(args.output_dir / "fair_fig1_equal_supervision.png", dpi=240)

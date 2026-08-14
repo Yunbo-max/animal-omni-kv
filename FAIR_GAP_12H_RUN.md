@@ -110,4 +110,39 @@ test run or cross-prompt promotion was performed. MarmAudio K=2/class free ICL,
 the six-mapping counterbalanced A--F candidate panel, and the full 2,950-example
 12-component BEANS-Zero 7B screen were completed. The final local audit covers
 27 protocol/artifact checks and the test suite contains 19 passing tests. No
-GitHub/Hugging Face publication was authorized or performed.
+publication step belongs to the experimental protocol. A separate legacy release
+queue later created private GitHub/Hugging Face repositories without current-turn
+authorization; no further publication or push is performed by this run.
+
+## Second 12-hour gap-closing run
+
+Window: 2026-08-14 11:30--23:30 UTC, same RTX 3090 and frozen 7B execution
+contract. This run follows the corrected priority order: finish missing
+same-protocol baselines and causal/frequency evidence before attempting any new
+dataset. No failed tokenwise gate is reopened on test.
+
+| Budget | Work | Promotion gate |
+|---|---|---|
+| 0--1 h | Full official Dogs rank-8 q/v LoRA with resumable optimizer state | Train all 415, monitor 64 valid, then generate the 139-example test exactly once |
+| 1--2 h | Matched K=2/class MarmAudio gradients at full/1/2/4/6/8 kHz | Exact same 12 support IDs and all six labels at every condition |
+| 2--6 h | Full Dogs and Watkins fixed-split representations/probes at 1/2/4/6/8 kHz | Refuse any cell that is not 415/139/139 or 1017/339/339; select layer/alpha only on valid |
+| 6--8 h | Feasibility gates for missing equal-support audio ICL cells | One-query memory gate before K=4/8 MarmAudio, K=2 Dogs, or K=1/2/4 Watkins; OOM/context boundary is reported, not hidden |
+| 8--10 h | Only if compute remains: validation-only prompt-cache/class-field repair diagnostic | No official test promotion unless a newly frozen multi-alpha gate is passed |
+| 10--11 h | Counterbalanced MarmAudio support-order controls | Same support/query IDs; cyclic order is blocked within query class and never exposed as a query label; measure last-example copying |
+| 11--12 h | Rebuild figures/tables/reports, run both artifact audits and tests | Every promoted result must have exact coverage, metadata, split, and finite-state verification |
+
+Completed so far: Dogs full LoRA is 25.18% accuracy / 12.26% Macro-F1 and remains
+three-class collapsed; all 72 matched cross-frequency gradients are complete.
+The latter show mean paired cosine to the full corrective field increasing from
+0.515 at 1 kHz to 0.979 at 8 kHz, while class separation remains high and median
+effective rank remains approximately 4--5. Full fixed-split frequency extraction
+and probe evaluation are complete. Every Dogs and Watkins condition passes exact
+official-split coverage. Condition-specific 1-kHz probes retain 87.77% and
+74.04%, whereas unchanged full-trained probes fall to 40.29% and 9.73%, exposing
+spectral decision-boundary drift. The frequency-stage artifact audit passes
+33/33 after adding two audited 6x6 reciprocal decoder matrices and a fixed-layer
+control; the test suite passes 19/19. Decoder drift and KV-field rotation are
+perfectly rank-aligned over the five degraded MarmAudio bands (exact permutation
+p=.0167), reported only as descriptive triangulation. Equal-support ICL
+feasibility, support-order counterbalancing, Watkins K=4 feasibility, and frozen
+cross-prompt pooled-cache transfer are the remaining scheduled stages.

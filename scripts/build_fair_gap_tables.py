@@ -15,7 +15,7 @@ def load(path: Path):
 def write(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=rows[0])
+        writer = csv.DictWriter(handle, fieldnames=rows[0], lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -26,6 +26,25 @@ def add_readouts(rows: list[dict], dataset: str, condition: str, payload: dict) 
             "dataset": dataset, "condition": condition,
             "support_k_per_class": cell["support_k_per_class"],
             "support_k_total": cell["support_k_total"], "method": cell["method"],
+            "n_query": cell["n_query"], "accuracy": cell["accuracy"],
+            "macro_f1": cell["macro_f1"], "query_label_free": True,
+        })
+
+
+def add_icl(
+    rows: list[dict], dataset: str, condition: str, payload: dict, *, expected_query: int
+) -> None:
+    for cell in payload["results"].values():
+        if cell["n_query"] != expected_query:
+            raise RuntimeError(
+                f"refusing partial {dataset} ICL cell: "
+                f"n_query={cell['n_query']} expected={expected_query}"
+            )
+        rows.append({
+            "dataset": dataset, "condition": condition,
+            "support_k_per_class": cell["support_k_per_class"],
+            "support_k_total": cell["support_k_total"],
+            "method": f"audio_icl_{payload['readout']}",
             "n_query": cell["n_query"], "accuracy": cell["accuracy"],
             "macro_f1": cell["macro_f1"], "query_label_free": True,
         })
@@ -45,22 +64,30 @@ def main() -> None:
                  load(root / "results/beans_dogs_lp1_equal_support_k1_k2_fullvalid_readouts_7b_summary.json"))
     add_readouts(table, "BEANS Watkins", "full_0-8k",
                  load(root / "results/beans_watkins_equal_support_readouts_7b_summary.json"))
-    for dataset, condition, relative in (
-        ("MarmAudio", "full_0-8k", "results/marmaudio_equal_support_audio_icl_k1_7b_summary.json"),
-        ("MarmAudio", "full_0-8k", "results/marmaudio_equal_support_audio_icl_k2_7b_summary.json"),
-        ("MarmAudio", "full_0-8k", "results/marmaudio_equal_support_audio_icl_candidate_k1_7b_summary.json"),
-        ("BEANS Dogs", "lp_0-1000", "results/beans_dogs_lp1_equal_support_audio_icl_k1_7b_summary.json"),
+    for dataset, condition, expected_query, relative in (
+        ("MarmAudio", "full_0-8k", 75, "results/marmaudio_equal_support_audio_icl_k1_7b_summary.json"),
+        ("MarmAudio", "full_0-8k", 75, "results/marmaudio_equal_support_audio_icl_k2_7b_summary.json"),
+        ("MarmAudio", "full_0-8k", 75, "results/marmaudio_equal_support_audio_icl_candidate_k1_7b_summary.json"),
+        ("BEANS Dogs", "lp_0-1000", 139, "results/beans_dogs_lp1_equal_support_audio_icl_k1_7b_summary.json"),
     ):
         payload = load(root / relative)
-        for cell in payload["results"].values():
-            table.append({
-                "dataset": dataset, "condition": condition,
-                "support_k_per_class": cell["support_k_per_class"],
-                "support_k_total": cell["support_k_total"],
-                "method": f"audio_icl_{payload['readout']}",
-                "n_query": cell["n_query"], "accuracy": cell["accuracy"],
-                "macro_f1": cell["macro_f1"], "query_label_free": True,
-            })
+        add_icl(table, dataset, condition, payload, expected_query=expected_query)
+    for dataset, condition, expected_query, relative in (
+        ("MarmAudio", "full_0-8k", 75, "results/marmaudio_equal_support_audio_icl_candidate_k2_7b_summary.json"),
+        ("MarmAudio", "full_0-8k", 75, "results/marmaudio_equal_support_audio_icl_k4_7b_summary.json"),
+        ("MarmAudio", "full_0-8k", 75, "results/marmaudio_equal_support_audio_icl_candidate_k4_7b_summary.json"),
+        ("MarmAudio", "full_0-8k", 75, "results/marmaudio_equal_support_audio_icl_k8_7b_summary.json"),
+        ("MarmAudio", "full_0-8k", 75, "results/marmaudio_equal_support_audio_icl_candidate_k8_7b_summary.json"),
+        ("BEANS Dogs", "lp_0-1000", 139, "results/beans_dogs_lp1_equal_support_audio_icl_k2_7b_summary.json"),
+        ("BEANS Watkins", "full_0-8k", 339, "results/beans_watkins_equal_support_audio_icl_k1_7b_summary.json"),
+        ("BEANS Watkins", "full_0-8k", 339, "results/beans_watkins_equal_support_audio_icl_k2_7b_summary.json"),
+        ("BEANS Watkins", "full_0-8k", 339, "results/beans_watkins_equal_support_audio_icl_k4_7b_summary.json"),
+    ):
+        path = root / relative
+        if path.exists():
+            add_icl(
+                table, dataset, condition, load(path), expected_query=expected_query
+            )
     write(args.output_dir / "table_equal_supervision.csv", table)
 
     kv = load(root / "results/beans_dogs_relative_token_kv_lp1_fullvalid_summary.json")
@@ -115,6 +142,84 @@ def main() -> None:
     if arbitrary_panel_path.exists():
         payload = load(arbitrary_panel_path)
         write(args.output_dir / "table_marm_arbitrary_label_panel.csv", payload["mappings"])
+
+    order_rows = []
+    for k, mode in ((2, "blocked"), (2, "interleaved"), (8, "interleaved")):
+        path = root / f"results/marmaudio_icl_order_control_k{k}_{mode}_7b_summary.json"
+        if not path.exists():
+            continue
+        payload = load(path)
+        if payload.get("n_query") != 75:
+            continue
+        order_rows.append({
+            "dataset": "MarmAudio",
+            "support_k_per_class": k,
+            "support_k_total": payload["support_k_total"],
+            "order_mode": mode,
+            "n_query": payload["n_query"],
+            "accuracy": payload["accuracy"],
+            "macro_f1": payload["macro_f1"],
+            "last_label_copy_rate": payload["last_label_copy_rate"],
+            "copy_rate_when_last_label_is_wrong": payload[
+                "copy_rate_when_last_label_is_wrong"
+            ],
+            "accuracy_when_target_differs_from_last_label": payload[
+                "accuracy_when_target_differs_from_last_label"
+            ],
+        })
+    for dataset, artifact, k, expected_query in (
+        ("BEANS Dogs", "beans_dogs_lp1", 2, 139),
+        ("BEANS Watkins", "beans_watkins", 1, 339),
+    ):
+        path = root / f"results/{artifact}_icl_order_control_k{k}_interleaved_7b_summary.json"
+        if not path.exists():
+            continue
+        payload = load(path)
+        if payload.get("n_query") != expected_query:
+            continue
+        order_rows.append({
+            "dataset": dataset,
+            "support_k_per_class": k,
+            "support_k_total": payload["support_k_total"],
+            "order_mode": "interleaved",
+            "n_query": payload["n_query"],
+            "accuracy": payload["accuracy"],
+            "macro_f1": payload["macro_f1"],
+            "last_label_copy_rate": payload["last_label_copy_rate"],
+            "copy_rate_when_last_label_is_wrong": payload[
+                "copy_rate_when_last_label_is_wrong"
+            ],
+            "accuracy_when_target_differs_from_last_label": payload[
+                "accuracy_when_target_differs_from_last_label"
+            ],
+        })
+    if order_rows:
+        write(args.output_dir / "table_marm_icl_order_controls.csv", order_rows)
+    positional_path = root / "results/icl_order_controls_combined_7b.json"
+    if positional_path.exists():
+        positional = load(positional_path)
+        if positional.get("cells"):
+            write(
+                args.output_dir / "table_icl_position_copying.csv",
+                positional["cells"],
+            )
+
+    cross_prompt_path = root / "results/beans_dogs_AJ_cross_prompt_7b_summary.json"
+    if cross_prompt_path.exists():
+        payload = load(cross_prompt_path)
+        cross_prompt_rows = []
+        for prompt in payload["prompts"]:
+            for method, key in (("native", "native"), ("class_routed_pooled", "pooled_alpha_03")):
+                cross_prompt_rows.append({
+                    "prompt": prompt["name"], "method": method, "n_query": prompt["n"],
+                    "accuracy": prompt[key]["accuracy"],
+                    "macro_f1": prompt[key]["macro_f1"],
+                    "invalid_response_rate": prompt[key]["invalid_response_rate"],
+                    "paired_pooled_minus_native": (
+                        prompt["paired_accuracy_gain"] if method == "class_routed_pooled" else ""
+                    ),
+                })
+        write(args.output_dir / "table_cross_prompt_pooled_kv.csv", cross_prompt_rows)
 
     beans_zero_path = root / "results/beans_zero_targets_fullscan_cap10_qwen7b_summary.json"
     if beans_zero_path.exists():

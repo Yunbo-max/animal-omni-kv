@@ -34,7 +34,7 @@ def csv_metrics(path: Path, labels: list[str]):
 
 def write_csv(path: Path, rows: list[dict]) -> None:
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+        writer = csv.DictWriter(handle, fieldnames=rows[0].keys(), lineterminator="\n")
         writer.writeheader(); writer.writerows(rows)
 
 
@@ -54,6 +54,7 @@ def main() -> None:
     dogs_freq = condition(load(results / "beans_dogs_frequency_qwen7b_summary.json"), "full_0-8k")
     dogs_probe = load(results / "beans_dogs_probe_7b_summary.json")
     dogs_aves = load(results / "summary_beans_dogs_aves_bio_fixed.json")
+    dogs_lora = load(results / "beans_dogs_lora_full_7b_summary.json")
     dogs_kv = load(results / "beans_dogs_conditional_kv_lp1_7b_layer28_rank8_followup_summary.json")
     dogs_cond = next(row for row in dogs_kv["adapted"] if row["method"] == "conditional")
     watkins_freq = condition(load(results / "beans_watkins_frequency_qwen7b_summary.json"), "full_0-8k")
@@ -82,9 +83,9 @@ def main() -> None:
         {"task": "Individual", "dataset": "BEANS Dogs", "model_method": "Qwen-7B zero-shot",
          "input": "observable full 0–8 kHz", "protocol": "official fixed test", "n": dogs_freq["n"],
          "accuracy": dogs_freq["accuracy"], "macro_f1": dogs_freq["macro_f1"]},
-        {"task": "Individual", "dataset": "BEANS Dogs", "model_method": "Qwen-7B conditional KV follow-up",
-         "input": "low-pass 1 kHz", "protocol": "train support; validation selected; fixed test", "n": dogs_cond["n"],
-         "accuracy": dogs_cond["accuracy"], "macro_f1": dogs_cond["macro_f1"]},
+        {"task": "Individual", "dataset": "BEANS Dogs", "model_method": "Qwen-7B Thinker LoRA",
+         "input": "observable full 0–8 kHz", "protocol": "one epoch; official fixed test", "n": dogs_lora["n"],
+         "accuracy": dogs_lora["accuracy"], "macro_f1": dogs_lora["macro_f1"]},
         {"task": "Individual", "dataset": "BEANS Dogs", "model_method": "Qwen-7B + linear probe",
          "input": "observable full 0–8 kHz", "protocol": "official fixed test", "n": dogs_probe["n_test"],
          "accuracy": dogs_probe["test_accuracy"], "macro_f1": dogs_probe["test_macro_f1"]},
@@ -94,9 +95,6 @@ def main() -> None:
         {"task": "Species", "dataset": "BEANS Watkins", "model_method": "Qwen-7B zero-shot",
          "input": "observable full 0–8 kHz", "protocol": "paired official fixed test", "n": watkins_freq["n"],
          "accuracy": watkins_freq["accuracy"], "macro_f1": watkins_freq["macro_f1"]},
-        {"task": "Species", "dataset": "BEANS Watkins", "model_method": "Qwen-7B conditional KV",
-         "input": "low-pass 1 kHz", "protocol": "train support; validation selected; fixed test", "n": watkins_cond["n"],
-         "accuracy": watkins_cond["accuracy"], "macro_f1": watkins_cond["macro_f1"]},
         {"task": "Species", "dataset": "BEANS Watkins", "model_method": "Qwen-7B Thinker LoRA",
          "input": "observable full 0–8 kHz", "protocol": "one epoch; official fixed test", "n": watkins_lora["n"],
          "accuracy": watkins_lora["accuracy"], "macro_f1": watkins_lora["macro_f1"]},
@@ -119,28 +117,150 @@ def main() -> None:
          "baseline_accuracy": marm_cond["aggregate"]["baseline_accuracy"]["mean"],
          "fixed_accuracy": marm_cond["aggregate"]["fixed_mean_accuracy"]["mean"],
          "conditional_accuracy": marm_cond["aggregate"]["conditional_accuracy"]["mean"],
-         "oracle_recovery": oracle_best, "note": "means over splits; Oracle on eligible failures"},
+         "oracle_recovery": oracle_best,
+         "evidence_status": "exploratory_pre_equal_support_protocol",
+         "note": "means over splits; Oracle on eligible failures; not a primary paper result"},
         {"dataset": "BEANS Dogs", "protocol": "fixed test; K=20 layer28 rank8 follow-up",
          "baseline_accuracy": dogs_kv["baseline"]["accuracy"],
          "fixed_accuracy": next(row for row in dogs_kv["adapted"] if row["method"] == "fixed_mean")["accuracy"],
          "conditional_accuracy": dogs_cond["accuracy"], "oracle_recovery": "",
-         "note": "no full-correct/lp1-wrong Oracle-eligible examples"},
+         "evidence_status": "exploratory_test_selected_do_not_claim",
+         "note": "no full-correct/lp1-wrong Oracle-eligible examples; invalid for primary claim"},
         {"dataset": "BEANS Watkins", "protocol": "fixed test; K=20 layer0 rank4",
          "baseline_accuracy": watkins_kv["baseline"]["accuracy"],
          "fixed_accuracy": next(row for row in watkins_kv["adapted"]
                                 if row["support_k"] == 20 and row["method"] == "fixed_mean")["accuracy"],
          "conditional_accuracy": watkins_cond["accuracy"], "oracle_recovery": 1.0,
-         "note": "Oracle is only 5 eligible examples"},
+         "evidence_status": "exploratory_undercovered_support_do_not_claim",
+         "note": "Oracle is only 5 eligible examples; K=20 total cannot cover 31 classes"},
     ]
     write_csv(args.output_dir / "table_kv_adaptation.csv", adaptation)
 
-    beans_zero = load(results / "beans_zero_core_cap10_qwen7b_summary.json")
+    beans_zero = load(results / "beans_zero_targets_fullscan_cap10_qwen7b_summary.json")
     zero_rows = [{"component": key, **value} for key, value in beans_zero.items()]
-    write_csv(args.output_dir / "table_beans_zero_core.csv", zero_rows)
+    write_csv(args.output_dir / "table_beans_zero_full.csv", zero_rows)
+
+    frequency_probe_rows = []
+    marm_native = {
+        row["condition"]: row
+        for row in load(results / "expert_qwen7b_b1_summary.json")["conditions"]
+    }
+    marm_probe_paths = {
+        "full_0-8k": "probe_7b_oof_summary.json",
+        "lp_0-1000": "probe_lp1k_7b_oof_summary.json",
+        "lp_0-2000": "probe_lp2000_7b_oof_summary.json",
+        "lp_0-4000": "probe_lp4000_7b_oof_summary.json",
+        "lp_0-6000": "probe_lp6000_7b_oof_summary.json",
+        "lp_0-8000": "probe_lp8000_7b_oof_summary.json",
+    }
+    marm_transfer = {
+        row["condition"]: row
+        for row in load(results / "probe_fulltrained_frequency_7b_oof_summary.json")["conditions"]
+    }
+    for condition_name, filename in marm_probe_paths.items():
+        probe = load(results / filename)
+        native = marm_native[condition_name]
+        frequency_probe_rows.append({
+            "task": "Call type", "dataset": "MarmAudio",
+            "condition": condition_name, "n": probe["n"],
+            "native_accuracy": native["accuracy"],
+            "probe_accuracy": probe["accuracy"],
+            "probe_macro_f1": probe["macro_f1"],
+            "fulltrained_transfer_probe_accuracy": marm_transfer[condition_name]["accuracy"],
+            "condition_specific_minus_fulltrained_transfer": (
+                probe["accuracy"] - marm_transfer[condition_name]["accuracy"]
+            ),
+            "condition_specific_minus_transfer_ci_low": "",
+            "condition_specific_minus_transfer_ci_high": "",
+            "condition_specific_minus_transfer_mcnemar_p": "",
+            "probe_minus_native_accuracy": probe["accuracy"] - native["accuracy"],
+            "probe_minus_native_ci_low": "",
+            "probe_minus_native_ci_high": "",
+            "probe_minus_native_mcnemar_p": "",
+            "full_minus_condition_probe_accuracy": "",
+            "full_minus_condition_ci_low": "",
+            "full_minus_condition_ci_high": "",
+            "full_minus_condition_mcnemar_p": "",
+            "protocol": "condition-specific nested recording-group OOF",
+            "comparison_role": "supervision-unmatched upper-ceiling diagnostic",
+        })
+    for dataset, task in (("dogs", "Individual"), ("watkins", "Species")):
+        payload = load(results / f"beans_{dataset}_frequency_probe_7b_summary.json")
+        transfer = {
+            row["condition"]: row
+            for row in load(
+                results / f"beans_{dataset}_probe_fulltrained_cross_frequency_7b_summary.json"
+            )["conditions"]
+        }
+        transfer_summary = load(
+            results / f"beans_{dataset}_probe_fulltrained_cross_frequency_7b_summary.json"
+        )
+        boundary_drift = transfer_summary[
+            "paired_condition_specific_minus_fulltrained_transfer"
+        ]
+        for cell in payload["conditions"]:
+            gap = cell["paired_probe_minus_native"]
+            frequency = cell["paired_full_probe_minus_condition_probe"]
+            frequency_probe_rows.append({
+                "task": task, "dataset": f"BEANS {dataset.title()}",
+                "condition": cell["condition"], "n": cell["n_test"],
+                "native_accuracy": cell["native_generation_accuracy"],
+                "probe_accuracy": cell["test_accuracy"],
+                "probe_macro_f1": cell["test_macro_f1"],
+                "fulltrained_transfer_probe_accuracy": transfer[cell["condition"]]["accuracy"],
+                "condition_specific_minus_fulltrained_transfer": boundary_drift[
+                    cell["condition"]
+                ]["delta"],
+                "condition_specific_minus_transfer_ci_low": boundary_drift[
+                    cell["condition"]
+                ]["ci_low"],
+                "condition_specific_minus_transfer_ci_high": boundary_drift[
+                    cell["condition"]
+                ]["ci_high"],
+                "condition_specific_minus_transfer_mcnemar_p": boundary_drift[
+                    cell["condition"]
+                ]["mcnemar_exact_p"],
+                "probe_minus_native_accuracy": cell["probe_minus_native_accuracy"],
+                "probe_minus_native_ci_low": gap["bootstrap_ci_low"],
+                "probe_minus_native_ci_high": gap["bootstrap_ci_high"],
+                "probe_minus_native_mcnemar_p": gap["mcnemar_exact_p"],
+                "full_minus_condition_probe_accuracy": frequency["delta_accuracy"],
+                "full_minus_condition_ci_low": frequency["bootstrap_ci_low"],
+                "full_minus_condition_ci_high": frequency["bootstrap_ci_high"],
+                "full_minus_condition_mcnemar_p": frequency["mcnemar_exact_p"],
+                "protocol": "condition-specific official fixed split",
+                "comparison_role": "supervision-unmatched upper-ceiling diagnostic",
+            })
+    write_csv(args.output_dir / "table_frequency_probe_gap.csv", frequency_probe_rows)
+    transfer_rows = []
+    for dataset in ("dogs", "watkins"):
+        with (results / f"beans_{dataset}_probe_transfer_matrix_7b.csv").open(
+            newline="", encoding="utf-8"
+        ) as stream:
+            for row in csv.DictReader(stream):
+                transfer_rows.append({"dataset": f"BEANS {dataset.title()}", **row})
+    write_csv(
+        args.output_dir / "table_frequency_decoder_transfer_matrix.csv", transfer_rows
+    )
+    boundary_kv = load(results / "marmaudio_boundary_kv_alignment_7b.json")
+    boundary_kv_rows = [
+        {
+            **row,
+            "spearman_rho_all_conditions": boundary_kv["spearman_rho"],
+            "spearman_exact_p": boundary_kv[
+                "spearman_exact_two_sided_permutation_p"
+            ],
+        }
+        for row in boundary_kv["rows"]
+    ]
+    write_csv(args.output_dir / "table_boundary_kv_alignment.csv", boundary_kv_rows)
     (args.output_dir / "paper_metrics.json").write_text(json.dumps({
         "main_benchmarks": main_rows,
         "kv_adaptation": adaptation,
-        "beans_zero_core": zero_rows,
+        "beans_zero_full": zero_rows,
+        "frequency_probe_gap": frequency_probe_rows,
+        "frequency_decoder_transfer_matrix": transfer_rows,
+        "boundary_kv_alignment": boundary_kv,
     }, indent=2), encoding="utf-8")
 
 

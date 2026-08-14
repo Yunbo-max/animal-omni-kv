@@ -50,9 +50,12 @@ Tsik, and 96.97% Twitter.
 
 This is supervised grouped OOF evidence, not an external held-out benchmark score.
 Its 65.93-point accuracy advantage over direct generation on the same expert corpus
-strongly indicates that call-type information is present in frozen Qwen states but
-is poorly expressed by the zero-shot text decision. This passes the representation
-gate for conditional KV.
+is an **upper-ceiling diagnostic**, not an equal-supervision grounding gap: the
+probe learns a label map that zero-shot generation never receives. It establishes
+that call-type information can be decoded from frozen Qwen states and motivates the
+registered equal-support experiments; those experiments, rather than this raw
+difference, determine whether the native decision interface under-uses that
+information.
 
 Under the identical grouped nested OOF protocol, the official 16 kHz AVES-bio
 encoder reaches 93.41% accuracy / 93.09% macro-F1. Qwen-7B states are therefore
@@ -63,9 +66,10 @@ time-mean pooling, and the same inner selection of Ridge regularization.
 
 After 1 kHz low-pass, the condition-specific grouped Qwen probe still reaches
 **77.29% accuracy / 76.91% macro-F1**, while direct generation is only 12.64% /
-5.88%. Relative to the full probe (95.42% / 95.32%), this shows both genuine
-spectral information loss and a much larger readout failure; it is not consistent
-with either “the encoder hears everything” or “the encoder hears nothing.”
+5.88%. Relative to the full probe (95.42% / 95.32%), this shows genuine spectral
+information loss while leaving substantial condition-specific decodability. The
+unmatched native/probe difference is descriptive only; the unchanged full-trained
+decoder transfer below is the stricter evidence for decision-boundary drift.
 
 The full condition-specific probe curve at 1/2/4/6/8 kHz is **77.29, 79.85,
 82.60, 93.96, and 94.87%** accuracy. A stricter transfer probe that selects and
@@ -112,22 +116,30 @@ rate 2e-4, accumulation 8). The fixed 64-example validation monitor ends at loss
 gain over zero-shot generation (5.60% / 1.87%) but remains far below the frozen
 linear probe (88.20% / 88.25%).
 
-## BEANS-Zero core subset
+The same one-epoch rank-8 q/v protocol was run on all 415 official Dogs training
+examples, with validation loss monitored on 64 official validation examples.
+The locked adapter was evaluated once on all 139 official test examples and
+reaches **25.18% accuracy / 12.26% macro-F1**. It predicts only Mac (101), Luke
+(32), or Zoe (6). This improves the 2.88% native result but remains far below
+the same-split frozen probe (92.81%) and AVES-bio probe (83.45%), even though all
+three supervised methods have access to the complete official training split.
 
-A deterministic balanced core subset contains 25 streamed examples from each of 12
-components (300 total): call-type, zf-indiv, Watkins, and common/scientific/taxonomic
-versions of unseen species, genus, and family. Each official `instruction_text` is
-used unchanged. To keep 7B inference defined and bounded on the 24 GB GPU, audio is
-prefix-capped at 10 s; examples shorter than the Qwen frontend minimum are tail-zero
-padded to 100 ms. This is our declared compute protocol, not an official BEANS-Zero
-duration rule.
+## BEANS-Zero full capped diagnostic
 
-Canonicalized exact match is **11.00% (33/300)** overall. Qwen-7B reaches **60.00%
-(15/25)** on bird song-vs-call and **72.00% (18/25)** on zebra-finch individual
-counting, but 0/25 on the Watkins subset and every unseen species/genus/family name
-variant. This small balanced subset is a screening result rather than the full
-91,965-example benchmark; it shows a sharp gap between coarse vocal attributes and
-open-vocabulary taxonomic identification.
+The complete materialized 10-second-cap manifest contains 2,950 examples from the
+same 12 requested components: call-type, zf-indiv, Watkins, and the common,
+scientific, and taxonomic versions of unseen species, genus, and family. Each
+official `instruction_text` is used unchanged. Audio is prefix-capped at 10 s;
+examples shorter than Qwen's frontend minimum are tail-zero-padded to 100 ms. This
+is a declared compute protocol, not an official BEANS-Zero duration rule.
+
+Canonicalized exact match is **13.32% (393/2,950)** overall. Qwen-7B reaches
+**61.48% (174/283)** on bird song-vs-call and **66.98% (217/324)** on zebra-finch
+individual counting. Watkins and every open species/genus/common/taxonomic
+component score 0%; unseen-family scientific-name reaches 1.54% exact (2.31%
+under a target-aware containment diagnostic). Overall target containment is
+13.36%, so formatting does not explain the open-label failures. This external
+zero-shot diagnostic is not an equal-supervision method comparison.
 
 ## BEANS fixed-split query-label-free KV
 
@@ -209,6 +221,57 @@ accuracy relative to full (6.19% to 3.54%; full-minus-removal +2.65 points, pair
 generation head, not evidence that individual or species information is
 frequency-independent: the corresponding frozen probes reach 92.81% and 88.20%.
 
+The complete condition-matched Dogs frozen-probe curve uses all 415/139/139
+official train/validation/test events at every condition. Test accuracy is
+92.81% at full input and 87.77%, 91.37%, 91.37%, 89.21%, and 94.96% after 1, 2,
+4, 6, and 8 kHz low-pass filtering. Layer and Ridge strength are selected only
+on the matching validation condition. None of the five paired differences from
+full is significant: every 95% bootstrap interval includes zero and every exact
+McNemar p-value is at least .189. The 84.89--92.09 point probe-minus-native gaps
+are significant under paired tests, but on Dogs they must be interpreted as an
+acoustic representation plus arbitrary-name-binding disparity, not a fair
+zero-shot grounding estimate.
+
+Freezing the full-input probe instead of retraining it per frequency reveals
+substantial decoder drift: Dogs transfer accuracy is only 40.29%, 59.71%, and
+81.29% at 1, 2, and 4 kHz, before recovering to 92.09%/91.37% at 6/8 kHz. Thus
+the 87.77% condition-specific 1-kHz score does not mean the full-band decision
+boundary is invariant; it means a new linear boundary can recover the retained
+identity information.
+The 1-kHz condition-specific-minus-transfer difference is +47.48 points (95%
+paired-bootstrap CI +38.13--+56.12; exact McNemar p=1.29e-16).
+
+Watkins provides the cleanest three-way separation. Its condition-specific
+probe is 88.20% at full input and 74.04%, 77.88%, 85.84%, 86.73%, and 84.07% at
+1/2/4/6/8 kHz. The full-minus-condition losses at 1 and 2 kHz are 14.16 points
+(95% CI 9.73--18.58) and 10.32 points (CI 6.49--14.45); 4 and 6 kHz are not
+significantly different from full, while the 8-kHz filtered control is 4.13
+points lower (CI 1.18--7.37). An unchanged full-trained probe scores only 9.73%,
+24.19%, 71.09%, 82.60%, and 86.73% across those cutoffs. Condition-specific
+readout therefore recovers 64.31 points over fixed transfer at 1 kHz: spectral
+degradation removes some information but induces much larger representation/
+decision-boundary drift (95% CI +59.29--+69.32; p=4.75e-66). Every Dogs and
+Watkins class is included in the class-resolved supplemental heatmap.
+
+The complete source-condition by target-condition decoder matrices strengthen
+this interpretation. A 1-kHz-trained decoder reaches its registered matched
+score (Dogs 87.77%, Watkins 74.04%) but transfers to full input at only 38.85%
+and 20.35%. The converse full-to-1-kHz cells are 40.29% and 9.73%. All 12
+diagonal cells exactly reproduce the original condition-specific probes, while
+each off-diagonal decoder is selected on its source validation set and applied
+unchanged to the paired target test set. The drift is therefore reciprocal, not
+an artifact of choosing full input as the sole source condition.
+A shared-hyperparameter control fixes all source decoders to the full-selected
+layer and Ridge alpha. The 1-kHz source then scores 87.77%/75.52% on matched
+Dogs/Watkins but only 30.22%/23.01% on full input, so layer selection does not
+explain the reciprocal shift.
+
+On MarmAudio, the five degraded-condition decoder-drift gaps and corrective-KV
+rotations are perfectly rank-aligned: Spearman rho=1.00 with an exact two-sided
+permutation p=.0167; Pearson r=.969 with exact p=.0167. This is a five-bandwidth
+descriptive association with a shared cutoff driver, not a causal mediation
+estimate.
+
 ## Oracle KV and geometry gate
 
 For 111 samples that were correct under full input and wrong after 1 kHz low-pass, pre-RoPE K/V Oracle recovery was 12.61%, 23.42%, 53.15%, 100%, and 93.69% for eta 0.01, 0.03, 0.1, 0.3, and 1.0 respectively. Every eligible sample was recovered by at least one registered eta. This is a label-using upper bound, not a deployable method.
@@ -232,6 +295,14 @@ accuracy ranges from 45% to 100% across projections. Watkins K=20 has fewer
 supports than its 31 labels, so same-label clustering is undefined there rather
 than estimated from nonexistent pairs. This structure motivates a conditional
 router but also explains why small, class-incomplete support sets are fragile.
+
+On an exactly balanced MarmAudio K=2/class support repeated across full and five
+low-pass conditions, the corrective gradient field rotates smoothly toward the
+full-band field as bandwidth returns: the all-layer mean paired cosine is 0.515,
+0.625, 0.723, 0.825, and 0.979 at 1, 2, 4, 6, and 8 kHz. Across those conditions,
+mean layerwise same-minus-different-label cosine remains 0.774--0.826 and median
+centered effective rank remains 4.03--4.67. Frequency changes the required
+correction direction without eliminating its compact class structure.
 
 ## Query-label-free conditional KV
 

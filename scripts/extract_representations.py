@@ -61,6 +61,7 @@ def main() -> None:
     pending = [r for r in rows if not output_path(r).exists()]
     if not pending: print("all representations already extracted"); return
     runner = QwenThinkerRunner(args.model_id)
+    logging.disable(logging.CRITICAL)
     for index, row in enumerate(pending, 1):
         if args.tokenwise_layer is None:
             representation = runner.extract_audio_representations(
@@ -78,7 +79,8 @@ def main() -> None:
         payload = dict(representation=representation.astype(np.float16),
                        event_id=row["event_id"], label=row["label"],
                        recording_id=row.get("recording_id", row["event_id"]),
-                       split=row.get("split", ""), condition=args.condition,
+                       split=row.get("split", ""),
+                       condition=row.get("condition", args.condition),
                        model_id=args.model_id)
         if token_representation is not None:
             payload.update(token_representation=token_representation.astype(np.float16),

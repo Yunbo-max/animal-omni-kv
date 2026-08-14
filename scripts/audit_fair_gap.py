@@ -122,6 +122,44 @@ def audit_icl(audit: Audit, root: Path) -> None:
         events = [row["event_id"] for row in rows]
         audit.check(f"icl:{relative}", len(rows) == count and len(set(events)) == count,
                     f"expected={count} observed={len(rows)} unique={len(set(events))}")
+    optional = (
+        ("results/marmaudio_equal_support_audio_icl_candidate_k2_7b.csv",
+         "results/marmaudio_equal_support_audio_icl_candidate_k2_7b_summary.json", 75, 2),
+        ("results/marmaudio_equal_support_audio_icl_k4_7b.csv",
+         "results/marmaudio_equal_support_audio_icl_k4_7b_summary.json", 75, 4),
+        ("results/marmaudio_equal_support_audio_icl_candidate_k4_7b.csv",
+         "results/marmaudio_equal_support_audio_icl_candidate_k4_7b_summary.json", 75, 4),
+        ("results/marmaudio_equal_support_audio_icl_k8_7b.csv",
+         "results/marmaudio_equal_support_audio_icl_k8_7b_summary.json", 75, 8),
+        ("results/marmaudio_equal_support_audio_icl_candidate_k8_7b.csv",
+         "results/marmaudio_equal_support_audio_icl_candidate_k8_7b_summary.json", 75, 8),
+        ("results/beans_dogs_lp1_equal_support_audio_icl_k2_7b.csv",
+         "results/beans_dogs_lp1_equal_support_audio_icl_k2_7b_summary.json", 139, 2),
+        ("results/beans_watkins_equal_support_audio_icl_k1_7b.csv",
+         "results/beans_watkins_equal_support_audio_icl_k1_7b_summary.json", 339, 1),
+        ("results/beans_watkins_equal_support_audio_icl_k2_7b.csv",
+         "results/beans_watkins_equal_support_audio_icl_k2_7b_summary.json", 339, 2),
+        ("results/beans_watkins_equal_support_audio_icl_k4_7b.csv",
+         "results/beans_watkins_equal_support_audio_icl_k4_7b_summary.json", 339, 4),
+    )
+    for csv_relative, summary_relative, count, support_k in optional:
+        csv_path, summary_path = root / csv_relative, root / summary_relative
+        if not csv_path.exists() and not summary_path.exists():
+            continue
+        passed = csv_path.exists() and summary_path.exists()
+        rows = read_csv(csv_path) if csv_path.exists() else []
+        events = [row["event_id"] for row in rows]
+        passed &= len(rows) == count and len(set(events)) == count
+        passed &= all(int(row["support_k_per_class"]) == support_k for row in rows)
+        if summary_path.exists():
+            payload = json.loads(summary_path.read_text())
+            cell = payload.get("results", {}).get(str(support_k), {})
+            passed &= cell.get("n_query") == count
+            passed &= cell.get("support_k_per_class") == support_k
+        audit.check(
+            f"optional_full_icl:{csv_relative}", passed,
+            f"K={support_k} expected={count} observed={len(rows)} unique={len(set(events))}",
+        )
     arbitrary_outputs = [
         ("identity", root / "results/marmaudio_arbitrary_labels_candidate_k0_k1_7b.csv")
     ] + [
@@ -283,8 +321,21 @@ def audit_oracle_controls(audit: Audit, root: Path) -> None:
 def audit_paired_statistics(audit: Audit, root: Path) -> None:
     payload = json.loads((root / "results/fair_gap_paired_statistics.json").read_text())
     names = {row["comparison"] for row in payload["comparisons"]}
-    passed = payload["bootstrap_draws"] == 20000 and len(names) == 11
-    passed &= all(row["n"] in {75, 139} for row in payload["comparisons"])
+    required = {
+        "Marm K1 probe - zero-shot bare candidate sequence-sum",
+        "Marm bare candidate sequence-sum - free generation",
+        "Marm K1 probe - K1 audio ICL free",
+        "Marm K1 probe - K1 audio ICL candidate",
+        "Marm K2 probe - K2 audio ICL free",
+        "Marm arbitrary-label candidate K1 - K0",
+        "Dogs K1 probe - K1 audio ICL free",
+        "Dogs K2 probe - K2 LoRA",
+        "Dogs conditional pooled - fixed mean at alpha=.03",
+        "Dogs ordered tokenwise - permuted at alpha=.03",
+        "Dogs ordered tokenwise - conditional pooled at alpha=.03",
+    }
+    passed = payload["bootstrap_draws"] == 20000 and required.issubset(names)
+    passed &= all(row["n"] in {75, 139, 339} for row in payload["comparisons"])
     audit.check("paired_fair_gap_statistics", passed,
                 f"comparisons={len(names)} draws={payload['bootstrap_draws']}")
 
@@ -324,6 +375,38 @@ def audit_arbitrary_panel_summary(audit: Audit, root: Path) -> None:
     )
 
 
+def audit_cross_prompt_pooled(audit: Audit, root: Path) -> None:
+    summary_path = root / "results/beans_dogs_AJ_cross_prompt_7b_summary.json"
+    prediction_paths = [
+        root / "results/beans_dogs_AJ_cross_prompt_paraphrase_7b.csv",
+        root / "results/beans_dogs_AJ_cross_prompt_reverse_order_7b.csv",
+    ]
+    if not summary_path.exists() and not any(path.exists() for path in prediction_paths):
+        return
+    passed = summary_path.exists() and all(path.exists() for path in prediction_paths)
+    details = []
+    for path in prediction_paths:
+        rows = read_csv(path) if path.exists() else []
+        grouped = defaultdict(list)
+        for row in rows:
+            grouped[row.get("method", "")].append(row)
+        passed &= set(grouped) == {"native", "probe_class_pooled"}
+        passed &= all(len(cell) == 139 for cell in grouped.values())
+        passed &= all(
+            len({row["event_id"] for row in cell}) == 139 for cell in grouped.values()
+        )
+        details.append(f"{path.stem}={len(rows)}")
+    if summary_path.exists():
+        payload = json.loads(summary_path.read_text())
+        passed &= len(payload.get("prompts", [])) == 2
+        passed &= all(prompt.get("n") == 139 for prompt in payload.get("prompts", []))
+    audit.check(
+        "dogs_AJ_cross_prompt_pooled_validation",
+        passed,
+        " ".join(details),
+    )
+
+
 def audit_beans_zero_7b(audit: Audit, root: Path) -> None:
     manifest_path = root / "data/manifests/beans_zero_targets_fullscan_cap10.csv"
     predictions_path = root / "results/beans_zero_targets_fullscan_cap10_qwen7b.csv"
@@ -349,6 +432,96 @@ def audit_beans_zero_7b(audit: Audit, root: Path) -> None:
         f"predictions={len(predictions)} unique={len(prediction_events)} "
         f"components={len(components)}",
     )
+
+
+def audit_icl_order_controls(audit: Audit, root: Path) -> None:
+    registry_path = root / "results/marmaudio_icl_order_registry_seed20260814.json"
+    if not registry_path.exists():
+        audit.check("marm_icl_order_registry", False, "registry missing")
+        return
+    registry = json.loads(registry_path.read_text())
+    rotations = list(registry.get("rotation_by_query", {}).values())
+    counts = Counter(rotations)
+    by_target = registry.get("rotation_counts_by_target", {})
+    passed = registry.get("n_query") == 75 and len(rotations) == 75
+    passed &= set(counts) == set(range(6))
+    passed &= max(counts.values()) - min(counts.values()) <= 1
+    for cell in by_target.values():
+        values = [int(cell.get(str(index), cell.get(index, 0))) for index in range(6)]
+        passed &= max(values) - min(values) <= 1
+    audit.check(
+        "marm_icl_order_registry", passed,
+        f"query={len(rotations)} rotations={dict(sorted(counts.items()))}",
+    )
+    for k, mode in ((2, "blocked"), (2, "interleaved"), (8, "interleaved")):
+        csv_path = root / f"results/marmaudio_icl_order_control_k{k}_{mode}_7b.csv"
+        summary_path = root / f"results/marmaudio_icl_order_control_k{k}_{mode}_7b_summary.json"
+        if not csv_path.exists() and not summary_path.exists():
+            continue
+        rows = read_csv(csv_path) if csv_path.exists() else []
+        summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
+        events = {row.get("event_id") for row in rows}
+        cell_passed = csv_path.exists() and summary_path.exists()
+        cell_passed &= len(rows) == len(events) == 75
+        cell_passed &= all(int(row["support_k_per_class"]) == k for row in rows)
+        cell_passed &= all(row["order_mode"] == mode for row in rows)
+        cell_passed &= summary.get("n_query") == 75
+        cell_passed &= summary.get("support_k_per_class") == k
+        cell_passed &= summary.get("order_mode") == mode
+        audit.check(
+            f"marm_icl_order_control:k{k}_{mode}", cell_passed,
+            f"expected=75 observed={len(rows)} unique={len(events)}",
+        )
+    for name, registry_relative, expected_query, label_count in (
+        ("dogs", "results/beans_dogs_lp1_icl_order_registry_seed20260814.json", 139, 10),
+        ("watkins", "results/beans_watkins_icl_order_registry_seed20260814.json", 339, 31),
+    ):
+        other = json.loads((root / registry_relative).read_text())
+        other_rotations = list(other.get("rotation_by_query", {}).values())
+        other_counts = Counter(other_rotations)
+        registry_passed = len(other_rotations) == expected_query
+        registry_passed &= set(other_counts) == set(range(label_count))
+        registry_passed &= max(other_counts.values()) - min(other_counts.values()) <= 1
+        audit.check(
+            f"{name}_icl_order_registry", registry_passed,
+            f"query={len(other_rotations)} rotations={len(other_counts)}",
+        )
+    for dataset, k, expected_query in (
+        ("beans_dogs_lp1", 2, 139), ("beans_watkins", 1, 339)
+    ):
+        csv_path = root / f"results/{dataset}_icl_order_control_k{k}_interleaved_7b.csv"
+        summary_path = root / f"results/{dataset}_icl_order_control_k{k}_interleaved_7b_summary.json"
+        if not csv_path.exists() and not summary_path.exists():
+            continue
+        rows = read_csv(csv_path) if csv_path.exists() else []
+        summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
+        events = {row.get("event_id") for row in rows}
+        passed = csv_path.exists() and summary_path.exists()
+        passed &= len(rows) == len(events) == expected_query
+        passed &= summary.get("n_query") == expected_query
+        passed &= summary.get("support_k_per_class") == k
+        passed &= summary.get("order_mode") == "interleaved"
+        audit.check(
+            f"{dataset}_icl_order_control:k{k}", passed,
+            f"expected={expected_query} observed={len(rows)} unique={len(events)}",
+        )
+    combined_path = root / "results/icl_order_controls_combined_7b.json"
+    combined_figure = root / "results/figures/fig_icl_order_position_copying.png"
+    if combined_path.exists() or combined_figure.exists():
+        combined = json.loads(combined_path.read_text()) if combined_path.exists() else {}
+        cells = combined.get("cells", [])
+        combined_passed = combined_path.exists() and combined_figure.exists()
+        combined_passed &= len(cells) >= 3
+        combined_passed &= all(cell.get("n_query", 0) > 0 for cell in cells)
+        combined_passed &= all(
+            0 <= cell.get("first_support_class_copy_rate", -1) <= 1
+            and 0 <= cell.get("last_support_class_copy_rate", -1) <= 1
+            for cell in cells
+        )
+        audit.check(
+            "icl_order_positional_copying_summary", combined_passed,
+            f"complete_cells={len(cells)} figure={combined_figure.exists()}",
+        )
 
 
 def main() -> None:
@@ -386,6 +559,8 @@ def main() -> None:
     audit_paired_statistics(audit, root)
     audit_audio_silence(audit, root)
     audit_arbitrary_panel_summary(audit, root)
+    audit_icl_order_controls(audit, root)
+    audit_cross_prompt_pooled(audit, root)
     audit_beans_zero_7b(audit, root)
     result = {"passed": audit.passed, "checks": audit.checks}
     args.output.parent.mkdir(parents=True, exist_ok=True)

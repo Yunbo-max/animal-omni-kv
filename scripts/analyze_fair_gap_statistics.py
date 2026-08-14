@@ -138,6 +138,117 @@ def main() -> None:
         paired("Dogs ordered tokenwise - conditional pooled at alpha=.03", kv_tokenwise,
                kv_pooled, rng, args.draws),
     ]
+    optional_specs = []
+    marm_readouts = root / "results/marmaudio_equal_support_readouts_7b.csv"
+    for k in (2, 4, 8):
+        probe = read(
+            marm_readouts,
+            lambda row, selected=k: row["support_k_per_class"] == str(selected)
+            and row["method"] == "linear_probe",
+        )
+        readouts = (("_candidate", "candidate"),) if k == 2 else (
+            ("", "free"), ("_candidate", "candidate")
+        )
+        for suffix, label in readouts:
+            path = root / f"results/marmaudio_equal_support_audio_icl{suffix}_k{k}_7b.csv"
+            optional_specs.append((f"Marm K{k} probe - K{k} audio ICL {label}", probe, path))
+    optional_specs.append((
+        "Dogs K2 probe - K2 audio ICL free", dogs_probe_k2,
+        root / "results/beans_dogs_lp1_equal_support_audio_icl_k2_7b.csv",
+    ))
+    watkins_readouts = root / "results/beans_watkins_equal_support_readouts_7b.csv"
+    for k in (1, 2, 4):
+        probe = read(
+            watkins_readouts,
+            lambda row, selected=k: row["support_k_per_class"] == str(selected)
+            and row["method"] == "linear_probe",
+        )
+        optional_specs.append((
+            f"Watkins K{k} probe - K{k} audio ICL free", probe,
+            root / f"results/beans_watkins_equal_support_audio_icl_k{k}_7b.csv",
+        ))
+    for name, probe, path in optional_specs:
+        if not path.exists():
+            continue
+        icl = read(path)
+        if set(icl) != set(probe):
+            # A resumable run may leave a partial CSV after an OOM. Such an
+            # artifact is intentionally excluded until all registered queries
+            # are present and the event sets match exactly.
+            continue
+        comparisons.append(paired(name, probe, icl, rng, args.draws))
+    order_specs = (
+        (
+            "Marm K2 counterbalanced blocked - fixed grouped order",
+            root / "results/marmaudio_icl_order_control_k2_blocked_7b.csv",
+            root / "results/marmaudio_equal_support_audio_icl_k2_7b.csv",
+        ),
+        (
+            "Marm K2 counterbalanced interleaved - fixed grouped order",
+            root / "results/marmaudio_icl_order_control_k2_interleaved_7b.csv",
+            root / "results/marmaudio_equal_support_audio_icl_k2_7b.csv",
+        ),
+        (
+            "Marm K8 counterbalanced interleaved - fixed grouped order",
+            root / "results/marmaudio_icl_order_control_k8_interleaved_7b.csv",
+            root / "results/marmaudio_equal_support_audio_icl_k8_7b.csv",
+        ),
+    )
+    for name, left_path, right_path in order_specs:
+        if not left_path.exists() or not right_path.exists():
+            continue
+        left, right = read(left_path), read(right_path)
+        if set(left) == set(right):
+            comparisons.append(paired(name, left, right, rng, args.draws))
+    for k, mode in ((2, "blocked"), (2, "interleaved"), (8, "interleaved")):
+        path = root / f"results/marmaudio_icl_order_control_k{k}_{mode}_7b.csv"
+        if not path.exists():
+            continue
+        probe = read(
+            marm_readouts,
+            lambda row, selected=k: row["support_k_per_class"] == str(selected)
+            and row["method"] == "linear_probe",
+        )
+        order_control = read(path)
+        if set(probe) == set(order_control):
+            comparisons.append(paired(
+                f"Marm K{k} probe - K{k} audio ICL {mode} order",
+                probe, order_control, rng, args.draws,
+            ))
+    cross_dataset_order = (
+        (
+            "Dogs K2 counterbalanced interleaved - fixed grouped order",
+            root / "results/beans_dogs_lp1_icl_order_control_k2_interleaved_7b.csv",
+            root / "results/beans_dogs_lp1_equal_support_audio_icl_k2_7b.csv",
+            dogs_probe_k2,
+            "Dogs K2 probe - counterbalanced interleaved audio ICL",
+        ),
+        (
+            "Watkins K1 counterbalanced interleaved - fixed grouped order",
+            root / "results/beans_watkins_icl_order_control_k1_interleaved_7b.csv",
+            root / "results/beans_watkins_equal_support_audio_icl_k1_7b.csv",
+            read(
+                watkins_readouts,
+                lambda row: row["support_k_per_class"] == "1"
+                and row["method"] == "linear_probe",
+            ),
+            "Watkins K1 probe - counterbalanced interleaved audio ICL",
+        ),
+    )
+    for fixed_name, order_path, grouped_path, probe, probe_name in cross_dataset_order:
+        if not order_path.exists():
+            continue
+        order_control = read(order_path)
+        if grouped_path.exists():
+            grouped = read(grouped_path)
+            if set(order_control) == set(grouped):
+                comparisons.append(paired(
+                    fixed_name, order_control, grouped, rng, args.draws
+                ))
+        if set(order_control) == set(probe):
+            comparisons.append(paired(
+                probe_name, probe, order_control, rng, args.draws
+            ))
     payload = {
         "bootstrap_draws": args.draws, "seed": args.seed,
         "inference": "paired example bootstrap; exact two-sided discordant-pair binomial test",
