@@ -1,0 +1,4 @@
+dataset,protocol,baseline_accuracy,fixed_accuracy,conditional_accuracy,oracle_recovery,note
+MarmAudio,5 random recording-group query splits; K=20,0.12347455089965284,0.1300796974018204,0.3247223920426273,1.0,means over splits; Oracle on eligible failures
+BEANS Dogs,fixed test; K=20 layer28 rank8 follow-up,0.02877697841726619,0.03597122302158273,0.20863309352517986,,no full-correct/lp1-wrong Oracle-eligible examples
+BEANS Watkins,fixed test; K=20 layer0 rank4,0.061946902654867256,0.05604719764011799,0.05604719764011799,1.0,Oracle is only 5 eligible examples

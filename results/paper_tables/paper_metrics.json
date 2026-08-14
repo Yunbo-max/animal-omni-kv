@@ -1,0 +1,233 @@
+{
+  "main_benchmarks": [
+    {
+      "task": "Call type",
+      "dataset": "MarmAudio",
+      "model_method": "Official ResNet-50",
+      "input": "original 0\u201348 kHz",
+      "protocol": "fixed expert corpus",
+      "n": 546,
+      "accuracy": 0.8864468864468864,
+      "macro_f1": 0.8868482744620745
+    },
+    {
+      "task": "Call type",
+      "dataset": "MarmAudio",
+      "model_method": "AVES-bio + linear probe",
+      "input": "Qwen-matched 0\u20138 kHz",
+      "protocol": "nested recording-group OOF",
+      "n": 546,
+      "accuracy": 0.9340659340659341,
+      "macro_f1": 0.930929698280567
+    },
+    {
+      "task": "Call type",
+      "dataset": "MarmAudio",
+      "model_method": "Qwen-3B zero-shot",
+      "input": "observable full 0\u20138 kHz",
+      "protocol": "fixed expert corpus",
+      "n": 546,
+      "accuracy": 0.2032967032967033,
+      "macro_f1": 0.12731345702653069
+    },
+    {
+      "task": "Call type",
+      "dataset": "MarmAudio",
+      "model_method": "Qwen-7B zero-shot",
+      "input": "observable full 0\u20138 kHz",
+      "protocol": "fixed expert corpus",
+      "n": 546,
+      "accuracy": 0.2948717948717949,
+      "macro_f1": 0.21938794847249718
+    },
+    {
+      "task": "Call type",
+      "dataset": "MarmAudio",
+      "model_method": "Qwen-7B + linear probe",
+      "input": "observable full 0\u20138 kHz",
+      "protocol": "nested recording-group OOF",
+      "n": 546,
+      "accuracy": 0.9542124542124543,
+      "macro_f1": 0.9532308047424553
+    },
+    {
+      "task": "Individual",
+      "dataset": "BEANS Dogs",
+      "model_method": "Qwen-7B zero-shot",
+      "input": "observable full 0\u20138 kHz",
+      "protocol": "official fixed test",
+      "n": 139,
+      "accuracy": 0.02877697841726619,
+      "macro_f1": 0.005594405594405594
+    },
+    {
+      "task": "Individual",
+      "dataset": "BEANS Dogs",
+      "model_method": "Qwen-7B conditional KV follow-up",
+      "input": "low-pass 1 kHz",
+      "protocol": "train support; validation selected; fixed test",
+      "n": 139,
+      "accuracy": 0.20863309352517986,
+      "macro_f1": 0.180711564528572
+    },
+    {
+      "task": "Individual",
+      "dataset": "BEANS Dogs",
+      "model_method": "Qwen-7B + linear probe",
+      "input": "observable full 0\u20138 kHz",
+      "protocol": "official fixed test",
+      "n": 139,
+      "accuracy": 0.9280575539568345,
+      "macro_f1": 0.9095401765010166
+    },
+    {
+      "task": "Species",
+      "dataset": "BEANS Watkins",
+      "model_method": "Qwen-7B zero-shot",
+      "input": "observable full 0\u20138 kHz",
+      "protocol": "paired official fixed test",
+      "n": 339,
+      "accuracy": 0.061946902654867256,
+      "macro_f1": 0.021954912004380104
+    },
+    {
+      "task": "Species",
+      "dataset": "BEANS Watkins",
+      "model_method": "Qwen-7B conditional KV",
+      "input": "low-pass 1 kHz",
+      "protocol": "train support; validation selected; fixed test",
+      "n": 339,
+      "accuracy": 0.05604719764011799,
+      "macro_f1": 0.011777157613590999
+    },
+    {
+      "task": "Species",
+      "dataset": "BEANS Watkins",
+      "model_method": "Qwen-7B Thinker LoRA",
+      "input": "observable full 0\u20138 kHz",
+      "protocol": "one epoch; official fixed test",
+      "n": 339,
+      "accuracy": 0.31563421828908556,
+      "macro_f1": 0.23439323597981787
+    },
+    {
+      "task": "Species",
+      "dataset": "BEANS Watkins",
+      "model_method": "Qwen-7B + linear probe",
+      "input": "observable full 0\u20138 kHz",
+      "protocol": "official fixed test",
+      "n": 339,
+      "accuracy": 0.8820058997050148,
+      "macro_f1": 0.8824960111870902
+    }
+  ],
+  "kv_adaptation": [
+    {
+      "dataset": "MarmAudio",
+      "protocol": "5 random recording-group query splits; K=20",
+      "baseline_accuracy": 0.12347455089965284,
+      "fixed_accuracy": 0.1300796974018204,
+      "conditional_accuracy": 0.3247223920426273,
+      "oracle_recovery": 1.0,
+      "note": "means over splits; Oracle on eligible failures"
+    },
+    {
+      "dataset": "BEANS Dogs",
+      "protocol": "fixed test; K=20 layer28 rank8 follow-up",
+      "baseline_accuracy": 0.02877697841726619,
+      "fixed_accuracy": 0.03597122302158273,
+      "conditional_accuracy": 0.20863309352517986,
+      "oracle_recovery": "",
+      "note": "no full-correct/lp1-wrong Oracle-eligible examples"
+    },
+    {
+      "dataset": "BEANS Watkins",
+      "protocol": "fixed test; K=20 layer0 rank4",
+      "baseline_accuracy": 0.061946902654867256,
+      "fixed_accuracy": 0.05604719764011799,
+      "conditional_accuracy": 0.05604719764011799,
+      "oracle_recovery": 1.0,
+      "note": "Oracle is only 5 eligible examples"
+    }
+  ],
+  "beans_zero_core": [
+    {
+      "component": "call-type",
+      "n": 25,
+      "exact_match": 0.6,
+      "correct": 15
+    },
+    {
+      "component": "unseen-family-cmn",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "unseen-family-sci",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "unseen-family-tax",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "unseen-genus-cmn",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "unseen-genus-sci",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "unseen-genus-tax",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "unseen-species-cmn",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "unseen-species-sci",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "unseen-species-tax",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "watkins",
+      "n": 25,
+      "exact_match": 0.0,
+      "correct": 0
+    },
+    {
+      "component": "zf-indiv",
+      "n": 25,
+      "exact_match": 0.72,
+      "correct": 18
+    },
+    {
+      "component": "overall",
+      "n": 300,
+      "exact_match": 0.11,
+      "correct": 33
+    }
+  ]
+}
