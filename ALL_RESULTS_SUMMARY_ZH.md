@@ -790,3 +790,15 @@ K=5 conditional − baseline 为 +14.39pp，CI `[+8.63, +20.14]`。
 - Watkins LoRA（私有）：https://huggingface.co/humanlong/qwen2.5-omni-7b-watkins-lora
 - Dogs K=2 LoRA（私有）：https://huggingface.co/humanlong/qwen2.5-omni-7b-dogs-k2-lora
 - GitHub 发布 commit：`868596b29cce51f84cc45d93f1c8d5ec2061630d`
+
+## 二十三、2026-08-14 两小时高价值扩展
+
+本轮新增了三组可直接加强论文的完整结果：
+
+- MarmAudio support scaling 扩到 K=16/class：ridge 在 K=1/2/4/8/16 时为 46.67/58.67/73.33/84.00/82.67%，表明约 K=8 饱和；与相同 support audio ICL 的严格 gap 在 K=1、2 时分别为 38.67pp 和 41.33pp，配对检验均显著。
+- Dogs 与 Watkins 六频段 condition-specific probe 全部完成。Dogs 在所有条件仍为 87.77%–94.96%，而 native 为 2.88%；Watkins 为 74.04%–88.20%，而 native 约为 5.60%–6.49%。低频确有信息损失，但无法解释 native generation 的地板表现。
+- correction geometry 能量分解完成。Dogs layer 22 的 class centroid raw-energy fraction 为 89.19%，centered class-specific variance fraction 为 88.48%，between/within=7.68，LOO centroid label accuracy=100%；MarmAudio 多个设置得到一致结论。
+
+Factorized repair 已实现并通过相关单元测试，但预注册 rank-selection 在两小时截止时仅完成 16/30 query，因此没有选择 rank、没有运行 confirmation/test，也没有把 partial accuracy 当作正式结果。MarmAudio K=8 constrained candidate scoring 同样只完成 50/75，已保存 checkpoint 并停止。
+
+完整协议、数值、限制和续跑顺序见 `TWO_HOUR_EXTENSION_RESULTS_20260814_ZH.md`。
